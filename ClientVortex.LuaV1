@@ -5,8 +5,7 @@ local Debris = game:GetService("Debris")
 local UserInputService = game:GetService("UserInputService") 
 
 if not LocalPlayer then
-    warn("LocalPlayer not found. This script must run on the client.")
-    return
+	return
 end
 
 local defaultWalkSpeed = 16
@@ -32,405 +31,448 @@ local noClipButton
 local killAuraButton
 local teleportButton 
 local HideMenuButton 
+local infiniteJumpButton -- New button reference
 
 local isSpeedBoostActive = false
 local isJumpBoostActive = false
 local isNoClipActive = false
 local isKillAuraActive = false 
 local isTeleportActive = false 
+local isInfiniteJumpActive = false -- New state variable
 
 local noClipConnection 
 local killAuraConnection
 local teleportConnection 
+local infiniteJumpConnection -- New connection
 
 local function createButton(name, text, positionY)
-    local Button = Instance.new("TextButton")
-    Button.Name = name
-    Button.Text = text
-    Button.Size = UDim2.new(0.9, 0, 0, 30)
-    Button.Position = UDim2.new(0.05, 0, 0, positionY)
-    Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    Button.TextColor3 = Color3.new(1, 1, 1)
-    Button.Font = Enum.Font.SourceSans
-    Button.TextSize = 16
-    Button.Parent = ScrollFrame -- IMPORTANT: Parented to ScrollFrame
+	local Button = Instance.new("TextButton")
+	Button.Name = name
+	Button.Text = text
+	Button.Size = UDim2.new(0.9, 0, 0, 30)
+	Button.Position = UDim2.new(0.05, 0, 0, positionY)
+	Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	Button.TextColor3 = Color3.new(1, 1, 1)
+	Button.Font = Enum.Font.SourceSans
+	Button.TextSize = 16
+	Button.Parent = ScrollFrame -- IMPORTANT: Parented to ScrollFrame
 
-    Button.MouseEnter:Connect(function()
-        Button.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-    end)
-    Button.MouseLeave:Connect(function()
-        Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    end)
+	Button.MouseEnter:Connect(function()
+		Button.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+	end)
+	Button.MouseLeave:Connect(function()
+		Button.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	end)
 
-    return Button
+	return Button
 end
 
 local function setFOV(input)
-    local Camera = game.Workspace.CurrentCamera
-    if Camera then
-        local newFOV = tonumber(input)
-        if newFOV then
-            newFOV = math.clamp(newFOV, minFOV, maxFOV)
-            
-            Camera.FieldOfView = newFOV
-            currentFOV = newFOV
-            fovLabel.Text = "Set FOV (Range: "..minFOV.." - "..maxFOV..", Current: "..currentFOV..")"
-            fovTextBox.Text = tostring(newFOV)
-        else
-            fovTextBox.Text = tostring(currentFOV)
-            warn("Invalid FOV value entered. Please enter a number.")
-        end
-    end
+	local Camera = game:GetService("Workspace").CurrentCamera
+	if Camera then
+		local newFOV = tonumber(input)
+		if newFOV then
+			newFOV = math.clamp(newFOV, minFOV, maxFOV)
+
+			Camera.FieldOfView = newFOV
+			currentFOV = newFOV
+			fovLabel.Text = "Set FOV (Range: "..minFOV.." - "..maxFOV..", Current: "..currentFOV..")"
+			fovTextBox.Text = tostring(newFOV)
+		else
+			fovTextBox.Text = tostring(currentFOV)
+		end
+	end
 end
 
 local function toggleSpeedBoost(humanoid, button)
-    isSpeedBoostActive = not isSpeedBoostActive
-    if isSpeedBoostActive then
-        humanoid.WalkSpeed = boostSpeed
-        button.Text = "Mini Speed Boost: ON"
-    else
-        humanoid.WalkSpeed = defaultWalkSpeed
-        button.Text = "Mini Speed Boost: OFF"
-    end
+	isSpeedBoostActive = not isSpeedBoostActive
+	if isSpeedBoostActive then
+		humanoid.WalkSpeed = boostSpeed
+		button.Text = "Mini Speed Boost: ON"
+	else
+		humanoid.WalkSpeed = defaultWalkSpeed
+		button.Text = "Mini Speed Boost: OFF"
+	end
 end
 
 local function toggleJumpBoost(humanoid, button)
-    isJumpBoostActive = not isJumpBoostActive
-    if isJumpBoostActive then
-        humanoid.JumpPower = boostJumpPower
-        button.Text = "Mini Jump Boost: ON"
-    else
-        humanoid.JumpPower = defaultJumpPower
-        button.Text = "Mini Jump Boost: OFF"
-    end
+	isJumpBoostActive = not isJumpBoostActive
+	if isJumpBoostActive then
+		humanoid.JumpPower = boostJumpPower
+		button.Text = "Mini Jump Boost: ON"
+	else
+		humanoid.JumpPower = defaultJumpPower
+		button.Text = "Mini Jump Boost: OFF"
+	end
 end
 
 local function toggleNoClip()
-    isNoClipActive = not isNoClipActive
-    
-    if noClipConnection then
-        noClipConnection:Disconnect()
-        noClipConnection = nil
-    end
-    
-    if isNoClipActive then
-        noClipButton.Text = "No Clip: ON"
-        
-        noClipConnection = RunService.Heartbeat:Connect(function()
-            local character = LocalPlayer.Character
-            if character then
-                for _, part in ipairs(character:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end)
-    else
-        noClipButton.Text = "No Clip: OFF"
-        local character = LocalPlayer.Character
-        if character then
-            for _, part in ipairs(character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end
-    end
+	isNoClipActive = not isNoClipActive
+
+	if noClipConnection then
+		noClipConnection:Disconnect()
+		noClipConnection = nil
+	end
+
+	if isNoClipActive then
+		noClipButton.Text = "No Clip: ON"
+
+		noClipConnection = RunService.Heartbeat:Connect(function()
+			local character = LocalPlayer.Character
+			if character then
+				for _, part in ipairs(character:GetChildren()) do
+					if part:IsA("BasePart") then
+						part.CanCollide = false
+					end
+				end
+			end
+		end)
+	else
+		noClipButton.Text = "No Clip: OFF"
+		local character = LocalPlayer.Character
+		if character then
+			for _, part in ipairs(character:GetChildren()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = true
+				end
+			end
+		end
+	end
 end
 
 local function toggleKillAura()
-    isKillAuraActive = not isKillAuraActive
+	isKillAuraActive = not isKillAuraActive
 
-    if killAuraConnection then
-        killAuraConnection:Disconnect()
-        killAuraConnection = nil
-    end
+	if killAuraConnection then
+		killAuraConnection:Disconnect()
+		killAuraConnection = nil
+	end
 
-    if isKillAuraActive then
-        killAuraButton.Text = "Kill Aura: ON"
-        
-        killAuraConnection = RunService.Heartbeat:Connect(function()
-            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if not root then return end
+	if isKillAuraActive then
+		killAuraButton.Text = "Kill Aura: ON"
 
-            local nearestPlayer
-            local shortestDistance = math.huge
+		killAuraConnection = RunService.Heartbeat:Connect(function()
+			local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if not root then return end
 
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local enemyRoot = player.Character.HumanoidRootPart
-                    local distance = (root.Position - enemyRoot.Position).magnitude
+			local nearestPlayer
+			local shortestDistance = math.huge
 
-                    if distance <= KILL_AURA_RANGE and distance < shortestDistance then
-                        shortestDistance = distance
-                        nearestPlayer = player
-                    end
-                end
-            end
+			for _, player in ipairs(Players:GetPlayers()) do
+				if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+					local enemyRoot = player.Character.HumanoidRootPart
+					local distance = (root.Position - enemyRoot.Position).magnitude
 
-            if nearestPlayer then
-                local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-                if tool then
-                    local enemyRoot = nearestPlayer.Character.HumanoidRootPart
-                    
-                    tool:Activate()
-                end
-            end
-        end)
-    else
-        killAuraButton.Text = "Kill Aura: OFF"
-    end
+					if distance <= KILL_AURA_RANGE and distance < shortestDistance then
+						shortestDistance = distance
+						nearestPlayer = player
+					end
+				end
+			end
+
+			if nearestPlayer then
+				local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+				if tool then
+					local enemyRoot = nearestPlayer.Character.HumanoidRootPart
+
+					tool:Activate()
+				end
+			end
+		end)
+	else
+		killAuraButton.Text = "Kill Aura: OFF"
+	end
 end
 
 local function doTeleport(input, gameProcessedEvent)
-    if not gameProcessedEvent and input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local camera = game.Workspace.CurrentCamera
-        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if not camera or not root then return end
+	if not gameProcessedEvent and input.UserInputType == Enum.UserInputType.MouseButton1 then
+		local camera = game:GetService("Workspace").CurrentCamera
+		local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+		if not camera or not root then return end
 
-        local mouseX = input.Position.X
-        local mouseY = input.Position.Y
-        local ray = camera:ScreenPointToRay(mouseX, mouseY)
+		local mouseX = input.Position.X
+		local mouseY = input.Position.Y
+		local ray = camera:ScreenPointToRay(mouseX, mouseY)
 
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-        raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
-        
-        local raycastResult = game.Workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+		raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
 
-        if raycastResult and raycastResult.Instance and raycastResult.Position then
-            local newPosition = raycastResult.Position + Vector3.new(0, 3, 0)
-            root.CFrame = CFrame.new(newPosition)
-        end
-    end
+		local raycastResult = game:GetService("Workspace"):Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+
+		if raycastResult and raycastResult.Instance and raycastResult.Position then
+			local newPosition = raycastResult.Position + Vector3.new(0, 3, 0)
+			root.CFrame = CFrame.new(newPosition)
+		end
+	end
 end
 
 local function toggleTeleport()
-    isTeleportActive = not isTeleportActive
+	isTeleportActive = not isTeleportActive
 
-    if teleportConnection then
-        teleportConnection:Disconnect()
-        teleportConnection = nil
-    end
+	if teleportConnection then
+		teleportConnection:Disconnect()
+		teleportConnection = nil
+	end
 
-    if isTeleportActive then
-        teleportButton.Text = "Click to Teleport: ON"
-        teleportConnection = UserInputService.InputBegan:Connect(doTeleport)
-    else
-        teleportButton.Text = "Click to Teleport: OFF"
-    end
+	if isTeleportActive then
+		teleportButton.Text = "Click to Teleport: ON"
+		teleportConnection = UserInputService.InputBegan:Connect(doTeleport)
+	else
+		teleportButton.Text = "Click to Teleport: OFF"
+	end
 end
 
+local function toggleInfiniteJump()
+	isInfiniteJumpActive = not isInfiniteJumpActive
+
+	if infiniteJumpConnection then
+		infiniteJumpConnection:Disconnect()
+		infiniteJumpConnection = nil
+	end
+
+	if isInfiniteJumpActive then
+		infiniteJumpButton.Text = "Infinite Jump: ON"
+
+		infiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
+			local character = LocalPlayer.Character
+			local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+			if rootPart and humanoid and humanoid.Health > 0 then
+
+				-- Set the jump impulse magnitude to 50 as requested.
+				local jumpMagnitude = 110
+
+				-- 0.4 is a multiplier to convert a JumpPower-like value to Velocity.Y
+				local jumpVelocity = Vector3.new(0, jumpMagnitude * 0.4, 0)
+
+				-- Directly apply the impulse, preserving horizontal velocity
+				rootPart.Velocity = Vector3.new(rootPart.Velocity.X, jumpVelocity.Y, rootPart.Velocity.Z)
+
+				-- Optional: Setting humanoid.Jump = true can sometimes help with the jump animation
+				humanoid.Jump = true 
+			end
+		end)
+	else
+		infiniteJumpButton.Text = "Infinite Jump: OFF"
+	end
+end
+
+
 local function connectEvents()
-    isSpeedBoostActive = speedButton.Text == "Mini Speed Boost: ON"
-    isJumpBoostActive = jumpButton.Text == "Mini Jump Boost: ON"
-    isNoClipActive = noClipButton.Text == "No Clip: ON"
-    isKillAuraActive = killAuraButton.Text == "Kill Aura: ON"
-    isTeleportActive = teleportButton.Text == "Click to Teleport: ON"
+	isSpeedBoostActive = speedButton.Text == "Mini Speed Boost: ON"
+	isJumpBoostActive = jumpButton.Text == "Mini Jump Boost: ON"
+	isNoClipActive = noClipButton.Text == "No Clip: ON"
+	isKillAuraActive = killAuraButton.Text == "Kill Aura: ON"
+	isTeleportActive = teleportButton.Text == "Click to Teleport: ON"
+	isInfiniteJumpActive = infiniteJumpButton.Text == "Infinite Jump: ON"
 
-    fovTextBox.FocusLost:Connect(function(enterPressed)
-        if enterPressed then
-            setFOV(fovTextBox.Text)
-        end
-    end)
+	fovTextBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			setFOV(fovTextBox.Text)
+		end
+	end)
 
-    speedButton.MouseButton1Click:Connect(function()
-        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then toggleSpeedBoost(humanoid, speedButton) else warn("Humanoid not found!") end
-    end)
+	speedButton.MouseButton1Click:Connect(function()
+		local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid then toggleSpeedBoost(humanoid, speedButton) end
+	end)
 
-    jumpButton.MouseButton1Click:Connect(function()
-        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then toggleJumpBoost(humanoid, jumpButton) else warn("Humanoid not found!") end
-    end)
-    
-    noClipButton.MouseButton1Click:Connect(toggleNoClip)
-    
-    killAuraButton.MouseButton1Click:Connect(toggleKillAura)
+	jumpButton.MouseButton1Click:Connect(function()
+		local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid then toggleJumpBoost(humanoid, jumpButton) end
+	end)
 
-    teleportButton.MouseButton1Click:Connect(toggleTeleport)
+	noClipButton.MouseButton1Click:Connect(toggleNoClip)
 
-    HideMenuButton.MouseButton1Click:Connect(function()
-        ShowButton.Position = MenuFrame.Position
-        MenuFrame.Visible = false
-        ShowButton.Visible = true
-    end)
-    
-    ShowButton.MouseButton1Click:Connect(function()
-        MenuFrame.Position = ShowButton.Position
-        MenuFrame.Visible = true
-        ShowButton.Visible = false
-    end)
-    
-    LocalPlayer.CharacterAdded:Connect(function(character)
-        local humanoid = character:WaitForChild("Humanoid")
-        
-        if isSpeedBoostActive then humanoid.WalkSpeed = boostSpeed end
-        if isJumpBoostActive then 
-            humanoid.JumpPower = boostJumpPower
-        end
-        
-        setFOV(fovTextBox.Text)
-        
-        if isNoClipActive then toggleNoClip(); toggleNoClip() end
-        if isKillAuraActive then toggleKillAura(); toggleKillAura() end
-        if isTeleportActive then toggleTeleport(); toggleTeleport() end
-    end)
+	killAuraButton.MouseButton1Click:Connect(toggleKillAura)
 
-    setFOV(fovTextBox.Text)
+	teleportButton.MouseButton1Click:Connect(toggleTeleport)
 
-    if isNoClipActive then toggleNoClip(); end
-    if isKillAuraActive then toggleKillAura(); end
-    if isTeleportActive then toggleTeleport(); end
+	infiniteJumpButton.MouseButton1Click:Connect(toggleInfiniteJump)
+
+	HideMenuButton.MouseButton1Click:Connect(function()
+		ShowButton.Position = MenuFrame.Position
+		MenuFrame.Visible = false
+		ShowButton.Visible = true
+	end)
+
+	ShowButton.MouseButton1Click:Connect(function()
+		MenuFrame.Position = ShowButton.Position
+		MenuFrame.Visible = true
+		ShowButton.Visible = false
+	end)
+
+	LocalPlayer.CharacterAdded:Connect(function(character)
+		local humanoid = character:WaitForChild("Humanoid")
+
+		if isSpeedBoostActive then humanoid.WalkSpeed = boostSpeed end
+		if isJumpBoostActive then 
+			humanoid.JumpPower = boostJumpPower
+		end
+
+		setFOV(fovTextBox.Text)
+
+		-- Re-run toggle to re-establish connections after character respawn
+		if isNoClipActive then toggleNoClip(); toggleNoClip() end
+		if isKillAuraActive then toggleKillAura(); toggleKillAura() end
+		if isTeleportActive then toggleTeleport(); toggleTeleport() end
+		if isInfiniteJumpActive then toggleInfiniteJump(); toggleInfiniteJump() end 
+	end)
+
+	setFOV(fovTextBox.Text)
+
+	if isNoClipActive then toggleNoClip(); end
+	if isKillAuraActive then toggleKillAura(); end
+	if isTeleportActive then toggleTeleport(); end
+	if isInfiniteJumpActive then toggleInfiniteJump(); end
 end
 
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 local existingScreenGui = playerGui:FindFirstChild("UtilityMenu")
 
 if existingScreenGui then
-    ScreenGui = existingScreenGui
-    MenuFrame = ScreenGui:FindFirstChild("MenuFrame")
-    ScrollFrame = MenuFrame:FindFirstChild("ScrollFrame") 
-    ShowButton = ScreenGui:FindFirstChild("ShowMenuButton")
-    HideMenuButton = MenuFrame:FindFirstChild("HideMenuButton") 
-    
-    fovLabel = ScrollFrame:FindFirstChild("FOVLabel") 
-    fovTextBox = ScrollFrame:FindFirstChild("FOVTextBox")
-    speedButton = ScrollFrame:FindFirstChild("SpeedButton")
-    jumpButton = ScrollFrame:FindFirstChild("JumpButton")
-    noClipButton = ScrollFrame:FindFirstChild("NoClipButton")
-    killAuraButton = ScrollFrame:FindFirstChild("KillAuraButton")
-    teleportButton = ScrollFrame:FindFirstChild("TeleportButton") 
-    
-    print("Vortex Client found existing menu. Re-establishing connections.")
+	ScreenGui = existingScreenGui
+	MenuFrame = ScreenGui:FindFirstChild("MenuFrame")
+	ScrollFrame = MenuFrame:FindFirstChild("ScrollFrame") 
+	ShowButton = ScreenGui:FindFirstChild("ShowMenuButton")
+	HideMenuButton = MenuFrame:FindFirstChild("HideMenuButton") 
+
+	fovLabel = ScrollFrame:FindFirstChild("FOVLabel") 
+	fovTextBox = ScrollFrame:FindFirstChild("FOVTextBox")
+	speedButton = ScrollFrame:FindFirstChild("SpeedButton")
+	jumpButton = ScrollFrame:FindFirstChild("JumpButton")
+	noClipButton = ScrollFrame:FindFirstChild("NoClipButton")
+	killAuraButton = ScrollFrame:FindFirstChild("KillAuraButton")
+	teleportButton = ScrollFrame:FindFirstChild("TeleportButton") 
+	infiniteJumpButton = ScrollFrame:FindFirstChild("InfiniteJumpButton")
+
 else
-    ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "UtilityMenu"
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.Parent = playerGui 
+	ScreenGui = Instance.new("ScreenGui")
+	ScreenGui.Name = "UtilityMenu"
+	ScreenGui.ResetOnSpawn = false
+	ScreenGui.Parent = playerGui 
 
-    MenuFrame = Instance.new("Frame")
-    MenuFrame.Name = "MenuFrame"
-    MenuFrame.Size = UDim2.new(0, 200, 0, 320)
-    MenuFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
-    MenuFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    MenuFrame.BorderSizePixel = 0
-    MenuFrame.ClipsDescendants = true
-    MenuFrame.Draggable = true 
-    MenuFrame.Parent = ScreenGui
+	MenuFrame = Instance.new("Frame")
+	MenuFrame.Name = "MenuFrame"
+	MenuFrame.Size = UDim2.new(0, 200, 0, 320)
+	MenuFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+	MenuFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	MenuFrame.BorderSizePixel = 0
+	MenuFrame.ClipsDescendants = true
+	MenuFrame.Draggable = true 
+	MenuFrame.Parent = ScreenGui
 
-    -- Title: Vortex Client
-    local Title = Instance.new("TextLabel")
-    Title.Name = "Title"
-    Title.Text = "Vortex Client"
-    Title.Size = UDim2.new(1, 0, 0, 20) -- Reduced height to make room for credit
-    Title.Position = UDim2.new(0, 0, 0, 0)
-    Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    Title.TextColor3 = Color3.new(1, 1, 1)
-    Title.Font = Enum.Font.SourceSansBold
-    Title.TextSize = 16
-    Title.Parent = MenuFrame
-    
-    -- Credit: VortexDev (New Element)
-    local Credit = Instance.new("TextLabel")
-    Credit.Name = "Credit"
-    Credit.Text = "Credit: VortexDev"
-    Credit.Size = UDim2.new(1, 0, 0, 10)
-    Credit.Position = UDim2.new(0, 0, 0, 20) -- Positioned right below the Title
-    Credit.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    Credit.TextColor3 = Color3.fromRGB(150, 150, 150) -- Subtle gray color
-    Credit.Font = Enum.Font.SourceSans
-    Credit.TextSize = 10
-    Credit.Parent = MenuFrame
+	-- Title: Vortex Client
+	local Title = Instance.new("TextLabel")
+	Title.Name = "Title"
+	Title.Text = "Vortex Client"
+	Title.Size = UDim2.new(1, 0, 0, 20)
+	Title.Position = UDim2.new(0, 0, 0, 0)
+	Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	Title.TextColor3 = Color3.new(1, 1, 1)
+	Title.Font = Enum.Font.SourceSansBold
+	Title.TextSize = 16
+	Title.Parent = MenuFrame
 
-    ScrollFrame = Instance.new("ScrollingFrame")
-    ScrollFrame.Name = "ScrollFrame"
-    ScrollFrame.Size = UDim2.new(1, 0, 1, -70) -- Adjusted height: 30 (Title) + 10 (Credit) + 30 (Hide Button) = 70 
-    ScrollFrame.Position = UDim2.new(0, 0, 0, 30) -- Adjusted position to start below Title and Credit 
-    ScrollFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    ScrollFrame.BorderSizePixel = 0
-    ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 280)
-    ScrollFrame.ScrollBarThickness = 6
-    ScrollFrame.Parent = MenuFrame
+	-- Credit: VortexDev
+	local Credit = Instance.new("TextLabel")
+	Credit.Name = "Credit"
+	Credit.Text = "Credit: VortexDev"
+	Credit.Size = UDim2.new(1, 0, 0, 10)
+	Credit.Position = UDim2.new(0, 0, 0, 20) 
+	Credit.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	Credit.TextColor3 = Color3.fromRGB(150, 150, 150)
+	Credit.Font = Enum.Font.SourceSans
+	Credit.TextSize = 10
+	Credit.Parent = MenuFrame
 
-    fovLabel = Instance.new("TextLabel")
-    fovLabel.Name = "FOVLabel"
-    fovLabel.Text = "Set FOV (Range: "..minFOV.." - "..maxFOV..", Current: "..defaultFOV..")"
-    fovLabel.Size = UDim2.new(0.9, 0, 0, 20)
-    fovLabel.Position = UDim2.new(0.05, 0, 0, 5) 
-    fovLabel.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    fovLabel.TextColor3 = Color3.new(1, 1, 1)
-    fovLabel.Font = Enum.Font.SourceSans
-    fovLabel.TextSize = 14
-    fovLabel.TextXAlignment = Enum.TextXAlignment.Left
-    fovLabel.Parent = ScrollFrame
+	ScrollFrame = Instance.new("ScrollingFrame")
+	ScrollFrame.Name = "ScrollFrame"
+	ScrollFrame.Size = UDim2.new(1, 0, 1, -70) 
+	ScrollFrame.Position = UDim2.new(0, 0, 0, 30) 
+	ScrollFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	ScrollFrame.BorderSizePixel = 0
+	ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 320)
+	ScrollFrame.ScrollBarThickness = 6
+	ScrollFrame.Parent = MenuFrame
 
-    fovTextBox = Instance.new("TextBox")
-    fovTextBox.Name = "FOVTextBox"
-    fovTextBox.PlaceholderText = "Enter FOV (e.g., 90)"
-    fovTextBox.Text = tostring(defaultFOV)
-    fovTextBox.Size = UDim2.new(0.9, 0, 0, 30)
-    fovTextBox.Position = UDim2.new(0.05, 0, 0, 30)
-    fovTextBox.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    fovTextBox.TextColor3 = Color3.new(1, 1, 1)
-    fovTextBox.TextStrokeTransparency = 0
-    fovTextBox.Font = Enum.Font.SourceSans
-    fovTextBox.TextSize = 16
-    fovTextBox.TextYAlignment = Enum.TextYAlignment.Center
-    fovTextBox.Parent = ScrollFrame
+	fovLabel = Instance.new("TextLabel")
+	fovLabel.Name = "FOVLabel"
+	fovLabel.Text = "Set FOV (Range: "..minFOV.." - "..maxFOV..", Current: "..defaultFOV..")"
+	fovLabel.Size = UDim2.new(0.9, 0, 0, 20)
+	fovLabel.Position = UDim2.new(0.05, 0, 0, 5) 
+	fovLabel.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+	fovLabel.TextColor3 = Color3.new(1, 1, 1)
+	fovLabel.Font = Enum.Font.SourceSans
+	fovLabel.TextSize = 14
+	fovLabel.TextXAlignment = Enum.TextXAlignment.Left
+	fovLabel.Parent = ScrollFrame
 
-    speedButton = createButton("SpeedButton", "Mini Speed Boost: OFF", 75) 
-    jumpButton = createButton("JumpButton", "Mini Jump Boost: OFF", 115) 
-    noClipButton = createButton("NoClipButton", "No Clip: OFF", 155)
-    killAuraButton = createButton("KillAuraButton", "Kill Aura: OFF", 195)
-    teleportButton = createButton("TeleportButton", "Click to Teleport: OFF", 235)
+	fovTextBox = Instance.new("TextBox")
+	fovTextBox.Name = "FOVTextBox"
+	fovTextBox.PlaceholderText = "Enter FOV (e.g., 90)"
+	fovTextBox.Text = tostring(defaultFOV)
+	fovTextBox.Size = UDim2.new(0.9, 0, 0, 30)
+	fovTextBox.Position = UDim2.new(0.05, 0, 0, 30)
+	fovTextBox.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	fovTextBox.TextColor3 = Color3.new(1, 1, 1)
+	fovTextBox.TextStrokeTransparency = 0
+	fovTextBox.Font = Enum.Font.SourceSans
+	fovTextBox.TextSize = 16
+	fovTextBox.TextYAlignment = Enum.TextYAlignment.Center
+	fovTextBox.Parent = ScrollFrame
 
-    HideMenuButton = Instance.new("TextButton")
-    HideMenuButton.Name = "HideMenuButton"
-    HideMenuButton.Text = "Hide Menu"
-    HideMenuButton.Size = UDim2.new(0.9, 0, 0, 30)
-    HideMenuButton.Position = UDim2.new(0.05, 0, 1, -30) -- Positioned at the bottom of MenuFrame
-    HideMenuButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    HideMenuButton.TextColor3 = Color3.new(1, 1, 1)
-    HideMenuButton.Font = Enum.Font.SourceSansBold
-    HideMenuButton.TextSize = 16
-    HideMenuButton.BorderSizePixel = 0
-    HideMenuButton.Parent = MenuFrame 
+	speedButton = createButton("SpeedButton", "Mini Speed Boost: OFF", 75) 
+	jumpButton = createButton("JumpButton", "Mini Jump Boost: OFF", 115) 
+	noClipButton = createButton("NoClipButton", "No Clip: OFF", 155)
+	killAuraButton = createButton("KillAuraButton", "Kill Aura: OFF", 195)
+	teleportButton = createButton("TeleportButton", "Click to Teleport: OFF", 235)
+	infiniteJumpButton = createButton("InfiniteJumpButton", "Infinite Jump: OFF", 275)
 
-    HideMenuButton.MouseEnter:Connect(function()
-        HideMenuButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    end)
-    HideMenuButton.MouseLeave:Connect(function()
-        HideMenuButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    end)
+	HideMenuButton = Instance.new("TextButton")
+	HideMenuButton.Name = "HideMenuButton"
+	HideMenuButton.Text = "Hide Menu"
+	HideMenuButton.Size = UDim2.new(0.9, 0, 0, 30)
+	HideMenuButton.Position = UDim2.new(0.05, 0, 1, -30) 
+	HideMenuButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	HideMenuButton.TextColor3 = Color3.new(1, 1, 1)
+	HideMenuButton.Font = Enum.Font.SourceSansBold
+	HideMenuButton.TextSize = 16
+	HideMenuButton.BorderSizePixel = 0
+	HideMenuButton.Parent = MenuFrame 
 
-    ShowButton = Instance.new("TextButton")
-    ShowButton.Name = "ShowMenuButton"
-    ShowButton.Text = "Show Menu"
-    ShowButton.Size = UDim2.new(0, 80, 0, 25)
-    ShowButton.Position = MenuFrame.Position
-    ShowButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    ShowButton.TextColor3 = Color3.new(1, 1, 1)
-    ShowButton.Font = Enum.Font.SourceSansBold
-    ShowButton.TextSize = 14
-    ShowButton.BorderSizePixel = 0
-    ShowButton.Visible = false
-    ShowButton.Draggable = true 
-    ShowButton.Parent = ScreenGui
-    
-    ShowButton.MouseEnter:Connect(function(this)
-        this.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    end)
-    ShowButton.MouseLeave:Connect(function(this)
-        this.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    end)
-    
-    print("Vortex Client Initialized and created new menu.")
+	HideMenuButton.MouseEnter:Connect(function()
+		HideMenuButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	end)
+	HideMenuButton.MouseLeave:Connect(function()
+		HideMenuButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	end)
+
+	ShowButton = Instance.new("TextButton")
+	ShowButton.Name = "ShowMenuButton"
+	ShowButton.Text = "Show Menu"
+	ShowButton.Size = UDim2.new(0, 80, 0, 25)
+	ShowButton.Position = MenuFrame.Position
+	ShowButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	ShowButton.TextColor3 = Color3.new(1, 1, 1)
+	ShowButton.Font = Enum.Font.SourceSansBold
+	ShowButton.TextSize = 14
+	ShowButton.BorderSizePixel = 0
+	ShowButton.Visible = false
+	ShowButton.Draggable = true 
+	ShowButton.Parent = ScreenGui
+
+	ShowButton.MouseEnter:Connect(function(this)
+		this.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	end)
+	ShowButton.MouseLeave:Connect(function(this)
+		this.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	end)
+
 end
 
 connectEvents()
-
-print("Vortex Client functionality active and persistent.")

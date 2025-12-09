@@ -18,7 +18,7 @@ local minFOV = 40
 local maxFOV = 120
 local currentFOV = defaultFOV
 
-local KILL_AURA_RANGE = 15
+local KILL_AURA_RANGE = 15 -- Max distance in studs for Kill Aura attack
 
 local ScreenGui
 local MenuFrame
@@ -322,21 +322,34 @@ else
     MenuFrame.Draggable = true 
     MenuFrame.Parent = ScreenGui
 
+    -- Title: Vortex Client
     local Title = Instance.new("TextLabel")
     Title.Name = "Title"
     Title.Text = "Vortex Client"
-    Title.Size = UDim2.new(1, 0, 0, 30)
+    Title.Size = UDim2.new(1, 0, 0, 20) -- Reduced height to make room for credit
     Title.Position = UDim2.new(0, 0, 0, 0)
     Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     Title.TextColor3 = Color3.new(1, 1, 1)
     Title.Font = Enum.Font.SourceSansBold
-    Title.TextSize = 18
+    Title.TextSize = 16
     Title.Parent = MenuFrame
     
+    -- Credit: VortexDev (New Element)
+    local Credit = Instance.new("TextLabel")
+    Credit.Name = "Credit"
+    Credit.Text = "Credit: VortexDev"
+    Credit.Size = UDim2.new(1, 0, 0, 10)
+    Credit.Position = UDim2.new(0, 0, 0, 20) -- Positioned right below the Title
+    Credit.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    Credit.TextColor3 = Color3.fromRGB(150, 150, 150) -- Subtle gray color
+    Credit.Font = Enum.Font.SourceSans
+    Credit.TextSize = 10
+    Credit.Parent = MenuFrame
+
     ScrollFrame = Instance.new("ScrollingFrame")
     ScrollFrame.Name = "ScrollFrame"
-    ScrollFrame.Size = UDim2.new(1, 0, 1, -60) 
-    ScrollFrame.Position = UDim2.new(0, 0, 0, 30)
+    ScrollFrame.Size = UDim2.new(1, 0, 1, -70) -- Adjusted height: 30 (Title) + 10 (Credit) + 30 (Hide Button) = 70 
+    ScrollFrame.Position = UDim2.new(0, 0, 0, 30) -- Adjusted position to start below Title and Credit 
     ScrollFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
     ScrollFrame.BorderSizePixel = 0
     ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 280)
@@ -379,7 +392,7 @@ else
     HideMenuButton.Name = "HideMenuButton"
     HideMenuButton.Text = "Hide Menu"
     HideMenuButton.Size = UDim2.new(0.9, 0, 0, 30)
-    HideMenuButton.Position = UDim2.new(0.05, 0, 0, 285)
+    HideMenuButton.Position = UDim2.new(0.05, 0, 1, -30) -- Positioned at the bottom of MenuFrame
     HideMenuButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     HideMenuButton.TextColor3 = Color3.new(1, 1, 1)
     HideMenuButton.Font = Enum.Font.SourceSansBold
@@ -407,7 +420,7 @@ else
     ShowButton.Visible = false
     ShowButton.Draggable = true 
     ShowButton.Parent = ScreenGui
-
+    
     ShowButton.MouseEnter:Connect(function(this)
         this.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     end)

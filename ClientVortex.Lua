@@ -3,9 +3,13 @@
 
     This script creates a simple GUI that allows the local player to modify
     client-side properties like Field of View (FOV), WalkSpeed, JumpPower,
-    and includes No Clip, ESP Tracer, and the new Click-to-Teleport mods.
+    and includes various client-side exploits:
     
-    FIXED: Robust No Clip, persistent mods on respawn, and removed 'Q' hotkey.
+    Mods:
+    1. FOV, Speed, Jump.
+    2. No Clip.
+    3. Kill Aura (Auto-attacks nearest enemy).
+    4. Click-to-Teleport.
 
     To use this, you would typically place it in a LocalScript inside a ScreenGui
     in the StarterGui service.
@@ -15,7 +19,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
-local UserInputService = game:GetService("UserInputService") -- NEW: Required for click detection
+local UserInputService = game:GetService("UserInputService") 
 
 if not LocalPlayer then
 	warn("LocalPlayer not found. This script must run on the client.")
@@ -34,6 +38,9 @@ local minFOV = 40
 local maxFOV = 120
 local currentFOV = defaultFOV
 
+-- Kill Aura Settings
+local KILL_AURA_RANGE = 15 -- Max distance in studs for Kill Aura attack
+
 -- References that will hold the GUI instances
 local ScreenGui
 local MenuFrame
@@ -44,21 +51,21 @@ local fovLabel
 local speedButton
 local jumpButton
 local noClipButton
-local espButton
-local teleportButton -- NEW
+local killAuraButton
+local teleportButton 
 local HideMenuButton 
 
 -- State variables
 local isSpeedBoostActive = false
 local isJumpBoostActive = false
 local isNoClipActive = false
-local isESPActive = false
-local isTeleportActive = false -- NEW: State for teleport
+local isKillAuraActive = false 
+local isTeleportActive = false 
 
 -- Runtime connections/threads for continuous mods
 local noClipConnection 
-local espConnection
-local teleportConnection -- NEW: Connection for the click listener
+local killAuraConnection -- Connection for the kill aura loop
+local teleportConnection 
 
 -- =============================================================================
 -- Helper Functions (Creation and Connection)
@@ -138,7 +145,6 @@ end
 local function toggleNoClip()
 	isNoClipActive = not isNoClipActive
 
-	-- Disconnect previous loop if it exists (CRITICAL for safe toggling/respawn)
 	if noClipConnection then
 		noClipConnection:Disconnect()
 		noClipConnection = nil
@@ -147,11 +153,9 @@ local function toggleNoClip()
 	if isNoClipActive then
 		noClipButton.Text = "No Clip: ON"
 
-		-- Start loop to disable collision on ALL character parts
 		noClipConnection = RunService.Heartbeat:Connect(function()
 			local character = LocalPlayer.Character
 			if character then
-				-- Iterate through all parts in the character and set CanCollide = false
 				for _, part in ipairs(character:GetChildren()) do
 					if part:IsA("BasePart") then
 						part.CanCollide = false
@@ -161,10 +165,8 @@ local function toggleNoClip()
 		end)
 	else
 		noClipButton.Text = "No Clip: OFF"
-		-- Re-enable collision immediately on the current character
 		local character = LocalPlayer.Character
 		if character then
-			-- Re-enable collision on all parts
 			for _, part in ipairs(character:GetChildren()) do
 				if part:IsA("BasePart") then
 					part.CanCollide = true
@@ -174,66 +176,61 @@ local function toggleNoClip()
 	end
 end
 
--- Logic for ESP (Extra Sensory Perception) Tracer
-local function toggleESP()
-	isESPActive = not isESPActive
+-- Logic for Kill Aura (Auto-Attack nearest player)
+local function toggleKillAura()
+	isKillAuraActive = not isKillAuraActive
 
-	-- Disconnect previous loop if it exists (CRITICAL for safe toggling/respawn)
-	if espConnection then
-		espConnection:Disconnect()
-		espConnection = nil
+	if killAuraConnection then
+		killAuraConnection:Disconnect()
+		killAuraConnection = nil
 	end
 
-	if isESPActive then
-		espButton.Text = "ESP Tracer: ON"
-		local tracers = {} 
+	if isKillAuraActive then
+		killAuraButton.Text = "Kill Aura: ON"
 
-		-- Run loop on render step to draw lines accurately
-		espConnection = RunService.Heartbeat:Connect(function()
-			-- Cleanup old tracers
-			for _, tracer in pairs(tracers) do
-				if tracer and tracer.Parent == game.Workspace then
-					tracer.Visible = false
-					Debris:AddItem(tracer, 0)
+		killAuraConnection = RunService.Heartbeat:Connect(function()
+			local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if not root then return end
+
+			local nearestPlayer
+			local shortestDistance = math.huge
+
+			-- 1. Find the nearest enemy player
+			for _, player in ipairs(Players:GetPlayers()) do
+				if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+					local enemyRoot = player.Character.HumanoidRootPart
+					local distance = (root.Position - enemyRoot.Position).magnitude
+
+					if distance <= KILL_AURA_RANGE and distance < shortestDistance then
+						shortestDistance = distance
+						nearestPlayer = player
+					end
 				end
 			end
-			table.clear(tracers)
 
-			local character = LocalPlayer.Character
-			local localHead = character and character:FindFirstChild("Head")
+			-- 2. Attack the nearest player (if found)
+			if nearestPlayer then
+				local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+				if tool then
+					-- Simulate a mouse click to activate the tool (often triggers damage scripts)
+					-- We use the enemy's position to ensure the client targets them.
+					local enemyRoot = nearestPlayer.Character.HumanoidRootPart
 
-			if localHead then
-				-- Draw tracers to all other players
-				for _, player in pairs(Players:GetPlayers()) do
-					if player ~= LocalPlayer and player.Character then
-						local targetHead = player.Character:FindFirstChild("Head")
+					-- Simple tool activation
+					tool:Activate()
 
-						if targetHead then
-							-- Create the line tracer (LineHandleAdornment)
-							local tracer = Instance.new("LineHandleAdornment")
-							tracer.Name = "Tracer"
-							tracer.Color3 = Color3.fromRGB(255, 0, 0) -- Red line
-							tracer.Thickness = 2
-							tracer.AlwaysOnTop = true
-
-							-- Set the start and end points of the line
-							tracer.Adornee = localHead
-							tracer.CFrame = CFrame.new(localHead.Position, targetHead.Position) * CFrame.new(0, 0, - (localHead.Position - targetHead.Position).Magnitude / 2)
-							tracer.Length = (localHead.Position - targetHead.Position).Magnitude
-
-							tracer.Parent = game.Workspace
-							table.insert(tracers, tracer)
-						end
-					end
+					-- Optionally, if the game uses mouse clicks for damage:
+					-- game:GetService("RunService").Stepped:wait() 
+					-- tool:Activate()
 				end
 			end
 		end)
 	else
-		espButton.Text = "ESP Tracer: OFF"
+		killAuraButton.Text = "Kill Aura: OFF"
 	end
 end
 
--- NEW MOD: Logic for Click to Teleport
+-- Logic for Click to Teleport
 local function doTeleport(input, gameProcessedEvent)
 	-- Only act on left click (MouseButton1) and if the click was not processed by a Roblox UI element
 	if not gameProcessedEvent and input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -241,22 +238,17 @@ local function doTeleport(input, gameProcessedEvent)
 		local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 		if not camera or not root then return end
 
-		-- Get the ray from the mouse position
 		local mouseX = input.Position.X
 		local mouseY = input.Position.Y
 		local ray = camera:ScreenPointToRay(mouseX, mouseY)
 
-		-- Raycast to find the ground/target position
 		local raycastParams = RaycastParams.new()
 		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-		-- Exclude the local player's character so we don't teleport to ourself
 		raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
 
-		-- Raycast up to 1000 studs away
 		local raycastResult = game.Workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
 
 		if raycastResult and raycastResult.Instance and raycastResult.Position then
-			-- Teleport to the hit position, slightly above the surface to prevent clipping
 			local newPosition = raycastResult.Position + Vector3.new(0, 3, 0)
 			root.CFrame = CFrame.new(newPosition)
 		end
@@ -266,7 +258,6 @@ end
 local function toggleTeleport()
 	isTeleportActive = not isTeleportActive
 
-	-- Disconnect previous listener if it exists
 	if teleportConnection then
 		teleportConnection:Disconnect()
 		teleportConnection = nil
@@ -274,7 +265,6 @@ local function toggleTeleport()
 
 	if isTeleportActive then
 		teleportButton.Text = "Click to Teleport: ON"
-		-- Connect the mouse click handler
 		teleportConnection = UserInputService.InputBegan:Connect(doTeleport)
 	else
 		teleportButton.Text = "Click to Teleport: OFF"
@@ -286,14 +276,14 @@ end
 -- Connection and Initialization
 -- =============================================================================
 
--- Function to connect ALL button events. Called after creation or after finding existing elements.
+-- Function to connect ALL button events.
 local function connectEvents()
 	-- Re-synchronize state from UI text
 	isSpeedBoostActive = speedButton.Text == "Mini Speed Boost: ON"
 	isJumpBoostActive = jumpButton.Text == "Mini Jump Boost: ON"
 	isNoClipActive = noClipButton.Text == "No Clip: ON"
-	isESPActive = espButton.Text == "ESP Tracer: ON"
-	isTeleportActive = teleportButton.Text == "Click to Teleport: ON" -- NEW
+	isKillAuraActive = killAuraButton.Text == "Kill Aura: ON"
+	isTeleportActive = teleportButton.Text == "Click to Teleport: ON"
 
 	-- 1. FOV Input Connection
 	fovTextBox.FocusLost:Connect(function(enterPressed)
@@ -316,18 +306,17 @@ local function connectEvents()
 		if humanoid then toggleJumpBoost(humanoid, jumpButton) else warn("Humanoid not found!") end
 	end)
 
-	-- 4. No Clip Connection (Initial toggle)
+	-- 4. No Clip Connection
 	noClipButton.MouseButton1Click:Connect(toggleNoClip)
 
-	-- 5. ESP Tracer Connection
-	espButton.MouseButton1Click:Connect(toggleESP)
+	-- 5. Kill Aura Connection
+	killAuraButton.MouseButton1Click:Connect(toggleKillAura)
 
-	-- 6. Teleport Connection (NEW)
+	-- 6. Teleport Connection
 	teleportButton.MouseButton1Click:Connect(toggleTeleport)
 
 	-- 7. Visibility (Hide) Button Connection
 	HideMenuButton.MouseButton1Click:Connect(function()
-		-- Copy the current position of the main frame to the small button before hiding
 		ShowButton.Position = MenuFrame.Position
 		MenuFrame.Visible = false
 		ShowButton.Visible = true
@@ -335,7 +324,6 @@ local function connectEvents()
 
 	-- 8. Visibility (Show) Button Connection
 	ShowButton.MouseButton1Click:Connect(function()
-		-- Copy the position of the small button to the main frame before showing it
 		MenuFrame.Position = ShowButton.Position
 		MenuFrame.Visible = true
 		ShowButton.Visible = false
@@ -345,39 +333,26 @@ local function connectEvents()
 	LocalPlayer.CharacterAdded:Connect(function(character)
 		local humanoid = character:WaitForChild("Humanoid")
 
-		-- Re-apply Speed
 		if isSpeedBoostActive then humanoid.WalkSpeed = boostSpeed end
-
-		-- Re-apply Jump
 		if isJumpBoostActive then 
 			humanoid.JumpPower = boostJumpPower
 		end
 
-		-- Initialize FOV on respawn
 		setFOV(fovTextBox.Text)
 
-		-- Note: Persistent mods (NoClip/ESP/Teleport) are restarted below this function body
+		-- Restart persistent mods (double toggle handles clean reconnect)
+		if isNoClipActive then toggleNoClip(); toggleNoClip() end
+		if isKillAuraActive then toggleKillAura(); toggleKillAura() end
+		if isTeleportActive then toggleTeleport(); toggleTeleport() end
 	end)
 
 	-- Initial FOV setup
 	setFOV(fovTextBox.Text)
 
-	-- Restart persistent mods if they were active from previous life (UI text check is key)
-	-- Double-toggling ensures the state remains 'ON' and the connection is renewed.
-	if isNoClipActive then
-		toggleNoClip() 
-		toggleNoClip() 
-	end
-
-	if isESPActive then
-		toggleESP()
-		toggleESP()
-	end
-
-	if isTeleportActive then -- NEW
-		toggleTeleport() 
-		toggleTeleport() 
-	end
+	-- Initial restart of persistent mods (must run once if not already active)
+	if isNoClipActive then toggleNoClip(); end
+	if isKillAuraActive then toggleKillAura(); end
+	if isTeleportActive then toggleTeleport(); end
 end
 
 
@@ -393,16 +368,15 @@ if existingScreenGui then
 	MenuFrame = ScreenGui:FindFirstChild("MenuFrame")
 	ScrollFrame = MenuFrame:FindFirstChild("ScrollFrame") 
 	ShowButton = ScreenGui:FindFirstChild("ShowMenuButton")
-	HideMenuButton = MenuFrame:FindFirstChild("HideMenuButton") -- Find the fixed button
+	HideMenuButton = MenuFrame:FindFirstChild("HideMenuButton") 
 
-	-- Get children references for connection (all inside ScrollFrame)
 	fovLabel = ScrollFrame:FindFirstChild("FOVLabel") 
 	fovTextBox = ScrollFrame:FindFirstChild("FOVTextBox")
 	speedButton = ScrollFrame:FindFirstChild("SpeedButton")
 	jumpButton = ScrollFrame:FindFirstChild("JumpButton")
 	noClipButton = ScrollFrame:FindFirstChild("NoClipButton")
-	espButton = ScrollFrame:FindFirstChild("ESPButton")
-	teleportButton = ScrollFrame:FindFirstChild("TeleportButton") -- NEW
+	killAuraButton = ScrollFrame:FindFirstChild("KillAuraButton")
+	teleportButton = ScrollFrame:FindFirstChild("TeleportButton") 
 
 	print("Vortex Client found existing menu. Re-establishing connections.")
 else
@@ -414,7 +388,7 @@ else
 
 	MenuFrame = Instance.new("Frame")
 	MenuFrame.Name = "MenuFrame"
-	MenuFrame.Size = UDim2.new(0, 200, 0, 250)
+	MenuFrame.Size = UDim2.new(0, 200, 0, 320)
 	MenuFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
 	MenuFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 	MenuFrame.BorderSizePixel = 0
@@ -441,7 +415,7 @@ else
 	ScrollFrame.Position = UDim2.new(0, 0, 0, 30)
 	ScrollFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 	ScrollFrame.BorderSizePixel = 0
-	ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 350) -- Adjusted size for new button
+	ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 280) -- Adjusted CanvasSize to fit remaining buttons
 	ScrollFrame.ScrollBarThickness = 6
 	ScrollFrame.Parent = MenuFrame
 
@@ -476,15 +450,15 @@ else
 	speedButton = createButton("SpeedButton", "Mini Speed Boost: OFF", 75) 
 	jumpButton = createButton("JumpButton", "Mini Jump Boost: OFF", 115) 
 	noClipButton = createButton("NoClipButton", "No Clip: OFF", 155)
-	espButton = createButton("ESPButton", "ESP Tracer: OFF", 195)
-	teleportButton = createButton("TeleportButton", "Click to Teleport: OFF", 235) -- NEW BUTTON
+	killAuraButton = createButton("KillAuraButton", "Kill Aura: OFF", 195) -- Moved up
+	teleportButton = createButton("TeleportButton", "Click to Teleport: OFF", 235) -- Moved up
 
 	-- Hide/Show components
 	HideMenuButton = Instance.new("TextButton")
 	HideMenuButton.Name = "HideMenuButton"
 	HideMenuButton.Text = "Hide Menu"
 	HideMenuButton.Size = UDim2.new(0.9, 0, 0, 30)
-	HideMenuButton.Position = UDim2.new(0.05, 0, 0, 215) -- Fixed position at bottom of the main frame
+	HideMenuButton.Position = UDim2.new(0.05, 0, 0, 285)
 	HideMenuButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 	HideMenuButton.TextColor3 = Color3.new(1, 1, 1)
 	HideMenuButton.Font = Enum.Font.SourceSansBold
